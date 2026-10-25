@@ -1,0 +1,27 @@
+{
+    "name": "FlashLearn HTML",
+    "short_name": "FlashLearn",
+    "description": "Belajar HTML dengan Flashcard interaktif dan Quiz",
+    "start_url": "/flashlearn-web/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#f7f9fc",
+    "orientation": "portrait-primary",
+    "icons": [
+        {
+            "src": "assets/app-icon.png",
+            "sizes": "672x530",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "assets/app-icon.png",
+            "sizes": "672x530",
+            "type": "image/png",
+            "purpose": "any"
+        }
+    ],
+    "categories": ["education"],
+    "lang": "id",
+    "dir": "ltr"
+}

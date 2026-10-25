@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="description" content="FlashLearn HTML - Belajar HTML dengan Flashcard interaktif dan Quiz. Aplikasi edukasi web PWA modern.">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="FlashLearn">
+    
+    <title>FlashLearn HTML - Belajar HTML Interaktif</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json?v=2">
+    <link rel="icon" type="image/png" href="assets/app-icon.png?v=1">
+    <link rel="apple-touch-icon" href="assets/app-icon.png?v=1">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="css/style.css?v=72">
+    
+    <!-- Cache Buster Script -->
+    <script>
+        if ('caches' in window) {
+            caches.keys().then(keys => {
+                keys.forEach(k => {
+                    if (k !== 'flashlearn-v79') caches.delete(k);
+                });
+            });
+        }
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(regs => {
+                for (const reg of regs) {
+                    reg.update();
+                }
+            });
+        }
+    </script>
+</head>
+<body>
+    <!-- App Shell -->
+    <div id="app">
+        <!-- Header -->
+        <header id="app-header" class="app-header">
+            <div class="header-content">
+                <button id="header-back-btn" class="header-btn hidden" aria-label="Kembali ke halaman sebelumnya">
+                    <span class="material-icons-round" aria-hidden="true">arrow_back</span>
+                </button>
+                <div class="header-title-group">
+                    <div class="header-title-row">
+                        <span id="header-page-icon" class="material-icons-round header-page-icon" aria-hidden="true">home</span>
+                        <h1 id="header-title" class="header-title">FlashLearn</h1>
+                    </div>
+                    <span id="header-subtitle" class="header-subtitle">HTML</span>
+                </div>
+                <div class="header-actions">
+                    <div id="user-avatar" class="user-avatar hidden" role="button" tabindex="0" aria-label="Profil pengguna - Klik untuk keluar">
+                        <img id="user-avatar-img" src="" alt="Foto profil akun" class="avatar-img">
+                    </div>
+                    <button id="login-btn" class="header-btn glass-btn" aria-label="Buka form masuk akun">
+                        <span class="material-icons-round" aria-hidden="true">person</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main id="page-container" class="page-container">
+            <!-- Pages will be rendered here dynamically -->
+        </main>
+
+        <!-- Bottom Navigation -->
+        <nav id="bottom-nav" class="bottom-nav" aria-label="Navigasi Utama">
+            <div id="nav-active-pill" class="nav-active-pill" aria-hidden="true"></div>
+            <button class="nav-item active" data-page="home" aria-label="Halaman Beranda">
+                <span class="material-icons-round nav-icon" aria-hidden="true">home</span>
+                <span class="nav-label">Beranda</span>
+                <div class="nav-indicator" aria-hidden="true"></div>
+            </button>
+            <button class="nav-item" data-page="flashlearn" aria-label="Halaman Materi FlashLearn">
+                <span class="material-icons-round nav-icon" aria-hidden="true">auto_stories</span>
+                <span class="nav-label">FlashLearn</span>
+                <div class="nav-indicator" aria-hidden="true"></div>
+            </button>
+            <button class="nav-item" data-page="quiz" aria-label="Halaman Latihan Soal">
+                <span class="material-icons-round nav-icon" aria-hidden="true">quiz</span>
+                <span class="nav-label">Latihan</span>
+                <div class="nav-indicator" aria-hidden="true"></div>
+            </button>
+        </nav>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast hidden">
+        <span class="material-icons-round toast-icon" id="toast-icon">check_circle</span>
+        <span id="toast-message"></span>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="login-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="login-modal-title">
+        <div class="modal-content glass-card">
+            <button id="close-modal-btn" class="modal-close-btn" type="button" aria-label="Tutup jendela masuk">
+                <span class="material-icons-round" aria-hidden="true">close</span>
+            </button>
+            <div class="modal-body">
+                <img src="assets/logo.png?v=5" alt="FlashLearn Logo" class="modal-logo">
+                <h2 id="login-modal-title" class="modal-title">Masuk ke FlashLearn</h2>
+                <p class="modal-desc">Masuk untuk menyimpan progres</p>
+                <label class="modal-form-label" for="login-email-input">Email</label>
+                <input id="login-email-input" class="modal-form-input" type="email" autocomplete="email" placeholder="nama@email.com" required>
+                <label class="modal-form-label" for="login-password-input">Password</label>
+                <input id="login-password-input" class="modal-form-input" type="password" autocomplete="current-password" placeholder="Password" required>
+                <div class="modal-auth-actions">
+                    <button id="modal-login-btn" class="btn btn-primary" type="button" aria-label="Masuk ke akun">
+                        <span>Masuk</span>
+                    </button>
+                    <button id="modal-register-btn" class="btn btn-secondary" type="button" aria-label="Daftar akun baru">
+                        <span>Buat Akun</span>
+                    </button>
+                </div>
+                <p class="modal-footer-text">🔒 Data kamu aman dan terenkripsi</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quiz Exit Confirmation -->
+    <div id="quiz-exit-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="quiz-exit-title">
+        <div class="modal-content quiz-exit-content">
+            <div class="quiz-exit-body">
+                <div class="quiz-exit-icon" aria-hidden="true">
+                    <span class="material-icons-round">warning_amber</span>
+                </div>
+                <h2 id="quiz-exit-title">Tinggalkan latihan?</h2>
+                <p>Progres latihan saat ini akan hilang dan dimulai dari awal saat kamu kembali.</p>
+                <div class="quiz-exit-actions">
+                    <button id="stay-in-quiz-btn" class="btn btn-secondary" type="button" aria-label="Batal dan tetap lanjut latihan">Tetap Latihan</button>
+                    <button id="leave-quiz-btn" class="btn btn-primary" type="button" aria-label="Tinggalkan latihan dan ulangi dari awal">Berpindah &amp; Ulangi</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Study Reminder -->
+    <div id="study-prompt-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="study-prompt-title">
+        <div class="modal-content quiz-exit-content study-prompt-content">
+            <div class="quiz-exit-body">
+                <div class="quiz-exit-icon study-prompt-icon" aria-hidden="true">
+                    <span class="material-icons-round">menu_book</span>
+                </div>
+                <h2 id="study-prompt-title">Pelajari materi dulu?</h2>
+                <p>Kamu sudah salah 3 kali pada soal ini. Tinjau materi terkait agar lebih mudah menyusun kode.</p>
+                <div class="quiz-exit-actions">
+                    <button id="study-prompt-continue" class="btn btn-secondary" type="button" aria-label="Tetap lanjut mencoba latihan">Tetap Mencoba</button>
+                    <button id="study-prompt-review" class="btn btn-primary" type="button" aria-label="Buka materi flashcard untuk dipelajari">Pelajari Materi</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Splash Screen -->
+    <div id="splash-screen" class="splash-screen">
+        <div class="splash-content">
+            <div class="splash-logo-container">
+                <img src="assets/logo.png?v=8" alt="FlashLearn Logo" class="splash-logo">
+                <div class="splash-glow"></div>
+            </div>
+            <div class="splash-text">
+                <p class="splash-tagline">Belajar HTML dengan Flashcard</p>
+                <span class="material-icons-round splash-code-mascot" aria-label="Belajar kode">terminal</span>
+            </div>
+            <div class="splash-loader">
+                <div class="loader-bar"></div>
+            </div>
+        </div>
+        <div class="splash-symbols" id="splash-symbols" aria-hidden="true"></div>
+        <div class="splash-particles" id="splash-particles"></div>
+    </div>
+
+    <!-- Login Gate -->
+    <section id="auth-gate" class="auth-gate hidden" aria-labelledby="auth-gate-title">
+        <div class="auth-gate-card">
+            <img src="assets/logo.png?v=8" alt="FlashLearn Logo" class="auth-gate-logo">
+            <p class="auth-gate-kicker">Selamat datang di</p>
+            <h2 id="auth-gate-title">FlashLearn</h2>
+            <p class="auth-gate-desc">Masuk untuk menyimpan progres belajar, atau mulai cepat sebagai guest.</p>
+            <form id="auth-email-form" class="auth-email-form">
+                <label for="auth-email-input">Email</label>
+                <input id="auth-email-input" type="email" autocomplete="email" placeholder="nama@email.com" required>
+                <label for="auth-password-input">Password</label>
+                <input id="auth-password-input" type="password" autocomplete="current-password" placeholder="Minimal 6 karakter" minlength="6" required>
+                <div class="auth-actions-row">
+                    <button id="auth-login-btn" class="btn btn-primary" type="submit">Masuk</button>
+                    <button id="auth-register-btn" class="btn btn-secondary" type="button">Buat Akun</button>
+                </div>
+            </form>
+            <div class="auth-divider"><span>atau</span></div>
+            <button id="guest-login-btn" class="btn btn-secondary auth-guest-btn" type="button">Lanjut sebagai Guest</button>
+            <p class="auth-gate-note"><span class="material-icons-round">info</span>Akun baru dibuat saat pertama kali menggunakan email ini.</p>
+        </div>
+    </section>
+
+    <!-- Scripts -->
+    <script src="js/data.js?v=8"></script>
+    <script src="js/pages/splash.js?v=8"></script>
+    <script src="js/pages/home.js?v=12"></script>
+    <script src="js/pages/flashlearn.js?v=6"></script>
+    <script src="js/pages/flashcard.js?v=12"></script>
+    <script src="js/pages/quiz.js?v=33"></script>
+    <script src="js/app.js?v=32"></script>
+
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js?v=79')
+                    .then(reg => {
+                        console.log('SW registered:', reg.scope);
+                        reg.update();
+                    })
+                    .catch(err => console.log('SW registration failed:', err));
+            });
+        }
+    </script>
+</body>
+</html>
