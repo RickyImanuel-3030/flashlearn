@@ -3,7 +3,7 @@
  * Provides offline support and caching for PWA
  */
 
-const CACHE_NAME = 'flashlearn-v142';
+const CACHE_NAME = 'flashlearn-v143';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
