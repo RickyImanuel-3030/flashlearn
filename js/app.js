@@ -1,64 +1,46 @@
 /**
  * FlashLearn HTML - Main Application Controller
- * Handles routing, navigation, authentication, and global state
+ * Handles routing, navigation, offline state, and LocalStorage data
  */
 const App = {
     currentPage: 'home',
     currentUser: null,
-    guestMode: false,
     pageHistory: [],
     pendingNavigation: null,
 
     // ── Initialization ──
     init() {
-        // Init splash
+        // Init splash animation
         SplashPage.init();
 
-        // Load saved user from localStorage
-        this.loadUser();
-
-        // Jika belum login dan bukan guest, siapkan auth-gate langsung di balik splash screen
-        // agar tidak ada glitch homepage saat splash screen memudar.
-        if (!this.currentUser && !this.guestMode) {
-            this.showAuthGate();
+        // Init Audio Manager (Procedural Web Audio BGM & SFX)
+        if (typeof AudioManager !== 'undefined') {
+            AudioManager.init();
+            // Mulai musik langsung dari splash screen dengan transisi lembut
+            AudioManager.startBGM(true);
         }
 
-        // Mulai ambil progres akun terbaru dari database/API di background
-        this.loadAccountProgress();
+        // Migrasi data akun/guest sebelumnya ke penyimpanan localStorage standar
+        this.migrateLegacyData();
 
-        // Hide splash after delay, then show app or reveal auth gate
-        setTimeout(async () => {
-            if (this.currentUser || this.guestMode) {
-                try {
-                    await this.loadAccountProgress();
-                } catch (e) {}
-                this.startApp();
-            }
+        // Tampilkan splash screen sejenak, lalu mulai aplikasi
+        setTimeout(() => {
+            this.startApp();
             SplashPage.hide();
-        }, 2400);
+        }, 1800);
 
         // Setup event listeners
         this.setupNavigation();
-        this.setupAuth();
         this.setupBackButton();
         this.setupQuizExitDialog();
         this.setupStudyPrompt();
+        this.setupSettingsModals();
         this.setupModalAccessibility();
         window.addEventListener('resize', () => this.positionNavPill());
-        window.addEventListener('online', () => this.flushPendingProgressSync());
-        window.addEventListener('beforeunload', (event) => {
-            if (this.guestMode && this.getStudiedCards().length > 0) {
-                event.preventDefault();
-                event.returnValue = '';
-            }
-        });
     },
 
     startApp() {
-        this.hideAuthGate();
-        this.updateAuthUI();
-
-        // Pulihkan halaman terakhir yang sedang dibuka sebelum reload di semua halaman,
+        // Pulihkan halaman terakhir yang sedang dibuka sebelum reload,
         // jika belum ada maka arahkan ke 'home'.
         const savedRoute = this.getSavedRoute();
         if (savedRoute && savedRoute.page) {
@@ -66,14 +48,6 @@ const App = {
         } else {
             this.navigate('home');
         }
-    },
-
-    showAuthGate() {
-        document.getElementById('auth-gate')?.classList.remove('hidden');
-    },
-
-    hideAuthGate() {
-        document.getElementById('auth-gate')?.classList.add('hidden');
     },
 
     // ── Navigation ──
@@ -111,7 +85,9 @@ const App = {
             leaveButton.addEventListener('click', () => {
                 const destination = this.pendingNavigation;
                 this.hideQuizExitDialog();
-                QuizPage.sessionActive = false;
+                if (typeof QuizPage !== 'undefined') {
+                    QuizPage.clearActiveSession();
+                }
                 if (destination) this.navigate(destination);
             });
         }
@@ -148,7 +124,9 @@ const App = {
         if (reviewButton) {
             reviewButton.addEventListener('click', () => {
                 this.hideStudyPrompt();
-                QuizPage.sessionActive = false;
+                if (typeof QuizPage !== 'undefined') {
+                    QuizPage.clearActiveSession();
+                }
                 this.navigate('flashlearn');
             });
         }
@@ -172,6 +150,67 @@ const App = {
             modal.classList.add('hidden');
             this.manageModalFocus(modal, false);
         }
+    },
+
+    // ── Settings & Reset Progress Modals ──
+    setupSettingsModals() {
+        const settingsModal = document.getElementById('settings-modal');
+        const resetModal = document.getElementById('reset-confirm-modal');
+
+        if (settingsModal) {
+            settingsModal.addEventListener('click', (event) => {
+                if (event.target === settingsModal) this.hideSettingsModal();
+            });
+        }
+
+        if (resetModal) {
+            resetModal.addEventListener('click', (event) => {
+                if (event.target === resetModal) this.hideResetConfirmModal();
+            });
+        }
+    },
+
+    showSettingsModal() {
+        const modal = document.getElementById('settings-modal');
+        if (!modal) return;
+
+        // Sync toggle states
+        const bgmCheck = document.getElementById('toggle-bgm');
+        const sfxCheck = document.getElementById('toggle-sfx');
+        if (bgmCheck && typeof AudioManager !== 'undefined') bgmCheck.checked = AudioManager.bgmEnabled;
+        if (sfxCheck && typeof AudioManager !== 'undefined') sfxCheck.checked = AudioManager.sfxEnabled;
+
+        modal.classList.remove('hidden');
+        this.manageModalFocus(modal, true, '#trigger-reset-progress-btn');
+    },
+
+    hideSettingsModal() {
+        const modal = document.getElementById('settings-modal');
+        if (modal) {
+            modal.classList.add('hidden');
+            this.manageModalFocus(modal, false);
+        }
+    },
+
+    showResetConfirmModal() {
+        const modal = document.getElementById('reset-confirm-modal');
+        if (!modal) return;
+        modal.classList.remove('hidden');
+        this.manageModalFocus(modal, true, '#cancel-reset-btn');
+    },
+
+    hideResetConfirmModal() {
+        const modal = document.getElementById('reset-confirm-modal');
+        if (modal) {
+            modal.classList.add('hidden');
+            this.manageModalFocus(modal, false);
+        }
+    },
+
+    confirmResetProgress() {
+        this.hideResetConfirmModal();
+        this.hideSettingsModal();
+        this.resetAllProgress();
     },
 
     // ── Route & State Persistence ──
@@ -266,6 +305,8 @@ const App = {
             } else if (params && params.quizView === 'exercise') {
                 QuizPage.restoreExercise(params);
             }
+        } else if (page === 'flashcard') {
+            FlashcardPage.bindEvents();
         }
     },
 
@@ -283,7 +324,6 @@ const App = {
         // Show/hide bottom nav
         const bottomNav = document.getElementById('bottom-nav');
         if (bottomNav) {
-            // Always show bottom nav
             bottomNav.classList.remove('hidden');
             bottomNav.dataset.active = activeNav;
             requestAnimationFrame(() => this.positionNavPill());
@@ -361,108 +401,6 @@ const App = {
         }
     },
 
-    // ── Authentication (Google OAuth simulation) ──
-    // Note: For production, you would integrate Google Identity Services
-    // For now, we use a mock login that saves to localStorage
-    setupAuth() {
-        const loginBtn = document.getElementById('login-btn');
-        const closeModalBtn = document.getElementById('close-modal-btn');
-        const modalOverlay = document.getElementById('login-modal');
-        const guestButton = document.getElementById('guest-login-btn');
-
-        // Modal separate buttons (Masuk & Buat Akun)
-        const modalLoginBtn = document.getElementById('modal-login-btn') || document.getElementById('google-login-btn');
-        const modalRegisterBtn = document.getElementById('modal-register-btn');
-        const modalEmailInput = document.getElementById('login-email-input');
-        const modalPasswordInput = document.getElementById('login-password-input');
-
-        const handleModalSubmit = (action) => {
-            const email = modalEmailInput?.value.trim();
-            const password = modalPasswordInput?.value;
-            if (email && password) this.loginWithEmail(email, password, action);
-            else this.showToast('Isi email dan password terlebih dahulu.', 'error');
-        };
-
-        if (modalLoginBtn) modalLoginBtn.addEventListener('click', () => handleModalSubmit('login'));
-        if (modalRegisterBtn) modalRegisterBtn.addEventListener('click', () => handleModalSubmit('register'));
-
-        [modalEmailInput, modalPasswordInput].forEach(input => {
-            input?.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleModalSubmit('login');
-                }
-            });
-        });
-
-        // Auth Gate separate buttons
-        const authLoginBtn = document.getElementById('auth-login-btn');
-        const authRegisterBtn = document.getElementById('auth-register-btn');
-        const authEmailInput = document.getElementById('auth-email-input');
-        const authPasswordInput = document.getElementById('auth-password-input');
-        const authForm = document.getElementById('auth-email-form');
-
-        const handleAuthGateSubmit = (action) => {
-            const email = authEmailInput?.value.trim();
-            const password = authPasswordInput?.value;
-            if (email && password) this.loginWithEmail(email, password, action);
-            else this.showToast('Isi email dan password terlebih dahulu.', 'error');
-        };
-
-        if (authForm) {
-            authForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                handleAuthGateSubmit('login');
-            });
-        }
-        if (authLoginBtn) {
-            authLoginBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                handleAuthGateSubmit('login');
-            });
-        }
-        if (authRegisterBtn) {
-            authRegisterBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                handleAuthGateSubmit('register');
-            });
-        }
-
-        if (guestButton) guestButton.addEventListener('click', () => this.continueAsGuest());
-
-        if (loginBtn) {
-            loginBtn.addEventListener('click', () => {
-                if (this.currentUser) {
-                    this.showLogoutConfirm();
-                } else {
-                    this.showLoginModal();
-                }
-            });
-        }
-
-        if (closeModalBtn) {
-            closeModalBtn.addEventListener('click', () => this.hideLoginModal());
-        }
-
-        if (modalOverlay) {
-            modalOverlay.addEventListener('click', (e) => {
-                if (e.target === modalOverlay) this.hideLoginModal();
-            });
-        }
-
-        // Avatar click and keyboard access for logout
-        const avatar = document.getElementById('user-avatar');
-        if (avatar) {
-            avatar.addEventListener('click', () => this.showLogoutConfirm());
-            avatar.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    this.showLogoutConfirm();
-                }
-            });
-        }
-    },
-
     // ── Accessibility & Focus Management ──
     lastFocusedElement: null,
 
@@ -474,12 +412,20 @@ const App = {
             // 1. Close active modal with Escape key
             if (e.key === 'Escape' || e.key === 'Esc') {
                 e.preventDefault();
-                if (activeModal.id === 'login-modal') {
-                    this.hideLoginModal();
+                if (activeModal.id === 'reset-confirm-modal') {
+                    this.hideResetConfirmModal();
+                } else if (activeModal.id === 'settings-modal') {
+                    this.hideSettingsModal();
                 } else if (activeModal.id === 'quiz-exit-modal') {
                     this.hideQuizExitDialog();
                 } else if (activeModal.id === 'study-prompt-modal') {
                     this.hideStudyPrompt();
+                } else if (activeModal.id === 'empty-result-modal') {
+                    if (typeof QuizPage !== 'undefined' && QuizPage.hideEmptyResultModal) {
+                        QuizPage.hideEmptyResultModal();
+                    } else {
+                        activeModal.classList.add('hidden');
+                    }
                 }
                 return;
             }
@@ -534,341 +480,312 @@ const App = {
         }
     },
 
-    showLoginModal() {
-        const modal = document.getElementById('login-modal');
-        if (!modal) return;
-        modal.classList.remove('hidden');
-        this.manageModalFocus(modal, true, '#login-email-input');
-    },
-
-    hideLoginModal() {
-        const modal = document.getElementById('login-modal');
-        if (modal) {
-            modal.classList.add('hidden');
-            this.manageModalFocus(modal, false);
-        }
-    },
-
-    async loginWithEmail(email, password, action = 'login') {
+    // ── LocalStorage Data Migration ──
+    migrateLegacyData() {
         try {
-            const response = await fetch('api/auth_email.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password, action })
-            });
-            const data = await response.json();
-            if (!response.ok || !data.success) throw new Error(data.message || (action === 'register' ? 'Pendaftaran gagal.' : 'Login gagal.'));
+            // 1. Migrasi skor lama ke 'flashlearn_scores'
+            let currentScores = [];
+            const rawScores = localStorage.getItem('flashlearn_scores');
+            if (rawScores) {
+                try {
+                    const parsed = JSON.parse(rawScores);
+                    if (Array.isArray(parsed)) currentScores = parsed;
+                } catch (e) {}
+            }
 
-            this.currentUser = data.user;
-            this.guestMode = false;
-            sessionStorage.removeItem('flashlearn_guest_session');
-            localStorage.setItem('flashlearn_user', JSON.stringify(data.user));
-            this.updateAuthUI();
-            this.hideLoginModal();
-            await this.loadAccountProgress();
-            this.startApp();
-            const welcomeMsg = action === 'register' ? `Akun berhasil dibuat! Halo, ${data.user.name}! 🎉` : `Selamat datang kembali, ${data.user.name}! 👋`;
-            this.showToast(welcomeMsg);
-        } catch (error) {
-            this.showToast(error.message || 'Gagal memproses akun. Periksa koneksi Anda.', 'error');
-        }
-    },
-
-    mockGoogleLogin(customEmail = null, customName = null) {
-        {
-            const email = customEmail || prompt('Masukkan email akun:', 'user@gmail.com');
-            const password = prompt('Masukkan password akun:', '');
-            return this.loginWithEmail(email || '', password || '');
-        }
-
-        // User data from prompt or default Google simulation
-        const email = (customEmail || prompt('Masukkan email Anda:', 'user@gmail.com') || '').trim().toLowerCase();
-        if (!email || !email.includes('@')) {
-            this.showToast('Masukkan alamat email yang valid.', 'error');
-            return;
-        }
-        const name = customName || (email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()));
-        
-        const user = {
-            name: name,
-            email: email,
-            avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=ff6b35&color=fff&rounded=true&size=128`
-        };
-
-        this.currentUser = user;
-        this.guestMode = false;
-        sessionStorage.removeItem('flashlearn_guest_session');
-        localStorage.setItem('flashlearn_user', JSON.stringify(user));
-        this.updateAuthUI();
-        this.hideLoginModal();
-        this.showToast(`Selamat datang, ${name}! 🎉`);
-
-        // Sync with Laragon MySQL database if available
-        fetch('api/auth_google.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(user)
-        }).then(res => res.json())
-          .then(data => {
-              if (data.success) {
-                  console.log('User synced to Laragon MySQL:', data);
-              }
-          }).catch(err => {
-              console.log('Running in offline / static mode (saved locally).');
-          });
-
-        this.loadAccountProgress();
-
-        // Refresh home page if currently on it
-        if (this.currentPage === 'home') this.startApp();
-        else this.hideAuthGate();
-    },
-
-    continueAsGuest() {
-        this.currentUser = null;
-        this.guestMode = true;
-        sessionStorage.setItem('flashlearn_guest_session', '1');
-        this.startApp();
-        this.showToast('Mode guest aktif. Progres hanya berlaku selama sesi ini.');
-    },
-
-    showLogoutConfirm() {
-        if (confirm('Keluar dari akun? Progres akunmu tetap tersimpan dan dapat dipulihkan saat masuk kembali.')) {
-            this.logout();
-        }
-    },
-
-    logout() {
-        fetch('api/logout.php', { method: 'POST' }).catch(() => {});
-        this.currentUser = null;
-        this.guestMode = false;
-        this.clearSavedRoute();
-        try {
-            sessionStorage.removeItem('flashlearn_quiz_last_result');
-        } catch (e) {}
-        this.resetLearningProgress();
-        localStorage.removeItem('flashlearn_user');
-        this.updateAuthUI();
-        this.showToast('Berhasil keluar. Progres akun tetap tersimpan.');
-        this.showAuthGate();
-    },
-
-    resetLearningProgress() {
-        // Hapus hanya progres sesi guest/legacy. Progres akun tetap tersimpan
-        // pada key berbasis email dan akan dipulihkan saat login kembali.
-        localStorage.removeItem(this.getProgressKey('flashlearn_studied_cards'));
-        localStorage.removeItem(this.getProgressKey('flashlearn_scores'));
-        localStorage.removeItem('flashlearn_studied_cards');
-        localStorage.removeItem('flashlearn_scores');
-        sessionStorage.removeItem('flashlearn_studied_cards_guest');
-        sessionStorage.removeItem('flashlearn_scores_guest');
-        sessionStorage.removeItem('flashlearn_guest_session');
-    },
-
-    getProgressKey(baseKey) {
-        const email = this.currentUser?.email?.trim().toLowerCase();
-        return email ? `${baseKey}_${encodeURIComponent(email)}` : `${baseKey}_guest`;
-    },
-
-    getProgressStorage() {
-        return this.guestMode ? sessionStorage : localStorage;
-    },
-
-    getPendingSyncKey() {
-        return this.currentUser ? `flashlearn_pending_sync_${encodeURIComponent(this.currentUser.email)}` : null;
-    },
-
-    hasPendingProgressSync() {
-        const key = this.getPendingSyncKey();
-        return Boolean(key && localStorage.getItem(key));
-    },
-
-    loadAccountProgress() {
-        if (!this.currentUser) return Promise.resolve();
-        return fetch(`api/get_progress.php?email=${encodeURIComponent(this.currentUser.email)}`)
-            .then(res => res.json())
-            .then(data => {
-                if (!data.success) return;
-                if (data.found && !this.hasPendingProgressSync()) {
-                    localStorage.setItem(this.getProgressKey('flashlearn_studied_cards'), JSON.stringify(data.studied_cards || []));
-                    localStorage.setItem(this.getProgressKey('flashlearn_scores'), JSON.stringify(data.scores || []));
-                    if (this.currentPage === 'home') {
-                        this.renderPage('home');
-                    } else if (this.currentPage === 'flashlearn') {
-                        this.renderPage('flashlearn');
+            if (currentScores.length === 0) {
+                const keysToRemove = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && (key.startsWith('flashlearn_scores_') || key === 'flashlearn_scores_guest')) {
+                        try {
+                            const legacy = JSON.parse(localStorage.getItem(key) || '[]');
+                            if (Array.isArray(legacy) && legacy.length > 0) {
+                                currentScores = [...currentScores, ...legacy];
+                            }
+                        } catch (e) {}
+                        keysToRemove.push(key);
                     }
-                } else {
-                    this.syncAccountProgress();
                 }
-            })
-            .catch(() => console.log('Progress server tidak tersedia, menggunakan cache lokal.'));
-    },
-
-    syncAccountProgress() {
-        if (!this.currentUser) return Promise.resolve();
-        const snapshot = {
-            email: this.currentUser.email,
-            studied_cards: this.getStudiedCards(),
-            scores: this.getScores()
-        };
-        return fetch('api/save_progress.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(snapshot)
-        }).then(response => {
-            if (!response.ok) throw new Error('Sync gagal');
-            const key = this.getPendingSyncKey();
-            if (key) localStorage.removeItem(key);
-        }).catch(() => {
-            const key = this.getPendingSyncKey();
-            if (key) localStorage.setItem(key, JSON.stringify(snapshot));
-        });
-    },
-
-    flushPendingProgressSync() {
-        if (!this.currentUser || !navigator.onLine) return Promise.resolve();
-        const key = this.getPendingSyncKey();
-        const pending = key ? localStorage.getItem(key) : null;
-        if (!pending) return Promise.resolve();
-        try {
-            const snapshot = JSON.parse(pending);
-            return fetch('api/save_progress.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(snapshot)
-            }).then(response => {
-                if (!response.ok) throw new Error('Sync gagal');
-                localStorage.removeItem(key);
-            });
-        } catch {
-            return Promise.resolve();
-        }
-    },
-
-    loadUser() {
-        const saved = localStorage.getItem('flashlearn_user');
-        if (saved) {
-            try {
-                this.currentUser = JSON.parse(saved);
-            } catch (e) {
-                localStorage.removeItem('flashlearn_user');
+                keysToRemove.forEach(k => localStorage.removeItem(k));
+                if (currentScores.length > 0) {
+                    localStorage.setItem('flashlearn_scores', JSON.stringify(currentScores));
+                }
+            } else {
+                // Hapus key lama jika sudah ada skor utama
+                const keysToRemove = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && (key.startsWith('flashlearn_scores_') || key === 'flashlearn_scores_guest')) {
+                        keysToRemove.push(key);
+                    }
+                }
+                keysToRemove.forEach(k => localStorage.removeItem(k));
             }
-        }
-        this.guestMode = !this.currentUser && sessionStorage.getItem('flashlearn_guest_session') === '1';
-    },
 
-    updateAuthUI() {
-        const loginBtn = document.getElementById('login-btn');
-        const avatar = document.getElementById('user-avatar');
-        const avatarImg = document.getElementById('user-avatar-img');
-
-        if (this.currentUser) {
-            if (loginBtn) loginBtn.classList.add('hidden');
-            if (avatar) {
-                avatar.classList.remove('hidden');
-                if (avatarImg) avatarImg.src = this.currentUser.avatar;
+            // 2. Migrasi kartu yang dipelajari ke 'flashlearn_studied_cards'
+            let currentCards = [];
+            const rawCards = localStorage.getItem('flashlearn_studied_cards');
+            if (rawCards) {
+                try {
+                    const parsed = JSON.parse(rawCards);
+                    if (Array.isArray(parsed)) currentCards = parsed;
+                } catch (e) {}
             }
-        } else {
-            if (loginBtn) loginBtn.classList.remove('hidden');
-            if (avatar) avatar.classList.add('hidden');
+
+            if (currentCards.length === 0) {
+                const cardSet = new Set();
+                const cardKeysToRemove = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && (key.startsWith('flashlearn_studied_cards_') || key === 'flashlearn_studied_cards_guest')) {
+                        try {
+                            const legacy = JSON.parse(localStorage.getItem(key) || '[]');
+                            if (Array.isArray(legacy)) {
+                                legacy.forEach(c => cardSet.add(c));
+                            }
+                        } catch (e) {}
+                        cardKeysToRemove.push(key);
+                    }
+                }
+                cardKeysToRemove.forEach(k => localStorage.removeItem(k));
+                if (cardSet.size > 0) {
+                    localStorage.setItem('flashlearn_studied_cards', JSON.stringify([...cardSet]));
+                }
+            } else {
+                // Hapus key lama jika sudah ada kartu utama
+                const cardKeysToRemove = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && (key.startsWith('flashlearn_studied_cards_') || key === 'flashlearn_studied_cards_guest')) {
+                        cardKeysToRemove.push(key);
+                    }
+                }
+                cardKeysToRemove.forEach(k => localStorage.removeItem(k));
+            }
+
+            // 3. Bersihkan data auth lama
+            localStorage.removeItem('flashlearn_user');
+            sessionStorage.removeItem('flashlearn_guest_session');
+        } catch (e) {
+            console.warn('Migrasi data lokal:', e);
         }
     },
 
-    // ── Score Management ──
+    // ── Score & Progress Management (Offline LocalStorage) ──
     saveScore(percent, rawScore = null, total = null) {
-        const calcScore = rawScore !== null ? rawScore : Math.round((percent / 100) * (total || 5));
-        const calcTotal = total !== null ? total : 5;
+        const calcScore = rawScore !== null ? rawScore : Math.round((percent / 100) * (total || 100));
+        const calcTotal = total !== null ? total : 100;
 
-        // 1. Simpan ke LocalStorage (Offline support PWA)
+        // Simpan langsung ke LocalStorage (PWA offline & statis)
         const scores = this.getScores();
         scores.push({
-            score: percent,
+            score: calcScore,
             rawScore: calcScore,
+            accuracy: percent,
             total: calcTotal,
             scoringVersion: 2,
-            date: new Date().toISOString(),
-            user: this.currentUser ? this.currentUser.email : 'guest'
+            date: new Date().toISOString()
         });
-        this.getProgressStorage().setItem(this.getProgressKey('flashlearn_scores'), JSON.stringify(scores));
-        this.syncAccountProgress();
-
-        // 2. Simpan ke Database Laragon MySQL (via API)
-        const payload = {
-            score: calcScore,
-            total: calcTotal,
-            percentage: percent,
-            user_email: this.currentUser ? this.currentUser.email : 'guest',
-            user_name: this.currentUser ? this.currentUser.name : 'Tamu'
-        };
-
-        if (!this.currentUser) return;
-
-        if (!this.currentUser) return;
-
-        fetch('api/save_score.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        }).then(res => res.json())
-          .then(data => {
-              if (data.success) {
-                  this.showToast('Skor tersimpan ke Database Laragon! 💾');
-              }
-          }).catch(err => {
-              console.log('Laragon server not reached, score stored locally.');
-          });
+        try {
+            localStorage.setItem('flashlearn_scores', JSON.stringify(scores));
+        } catch (e) {
+            console.error('Gagal menyimpan skor ke localStorage:', e);
+        }
     },
 
     getScores() {
-        const saved = this.getProgressStorage().getItem(this.getProgressKey('flashlearn_scores'));
-        if (saved) {
-            try {
-                return JSON.parse(saved);
-            } catch (e) {
-                return [];
-            }
+        try {
+            const saved = localStorage.getItem('flashlearn_scores');
+            return saved ? JSON.parse(saved) : [];
+        } catch (e) {
+            return [];
         }
-        return [];
     },
 
     getBestScore() {
-        const scores = this.getScores().filter(score => score.scoringVersion === 2);
+        const record = this.getBestScoreRecord();
+        if (!record) return null;
+        return record.rawScore !== undefined && record.rawScore !== null ? record.rawScore : record.score;
+    },
+
+    getBestScoreRecord() {
+        const scores = this.getScores().filter(score => score.scoringVersion === 2 || typeof score.score === 'number');
         if (scores.length === 0) return null;
-        return Math.max(...scores.map(s => s.score));
+        return scores.reduce((best, cur) => {
+            const curVal = cur.rawScore !== undefined && cur.rawScore !== null ? cur.rawScore : cur.score;
+            const bestVal = best.rawScore !== undefined && best.rawScore !== null ? best.rawScore : best.score;
+            return curVal > bestVal ? cur : best;
+        }, scores[0]);
     },
 
     getStudiedCards() {
         try {
-            const cards = JSON.parse(this.getProgressStorage().getItem(this.getProgressKey('flashlearn_studied_cards')) || '[]');
+            const cards = JSON.parse(localStorage.getItem('flashlearn_studied_cards') || '[]');
             return Array.isArray(cards) ? cards : [];
         } catch (e) {
             return [];
         }
     },
 
+    getCompletedTopics() {
+        try {
+            const list = JSON.parse(localStorage.getItem('flashlearn_completed_topics') || '[]');
+            return Array.isArray(list) ? list : [];
+        } catch (e) {
+            return [];
+        }
+    },
+
+    isTopicCompleted(topicId) {
+        if (!topicId) return false;
+        if (typeof FlashLearnData !== 'undefined') {
+            const topic = FlashLearnData.getTopicById(topicId);
+            if (topic && topic.cards && topic.cards.length > 0) {
+                const studiedSet = new Set(this.getStudiedCards());
+                // Wajib SEMUA kartu sudah di-flip (tercatat di flashlearn_studied_cards)
+                return topic.cards.every((_, idx) => studiedSet.has(`${topicId}-${idx}`));
+            }
+        }
+        return false;
+    },
+
+    markTopicCompleted(topicId) {
+        if (!topicId) return false;
+        if (!this.isTopicCompleted(topicId)) return false;
+
+        const completed = this.getCompletedTopics();
+        if (!completed.includes(topicId)) {
+            completed.push(topicId);
+            try {
+                localStorage.setItem('flashlearn_completed_topics', JSON.stringify(completed));
+            } catch (e) {
+                console.error('Gagal menyimpan completed topic:', e);
+            }
+        }
+        return true;
+    },
+
     markCardStudied(topicId, cardIndex) {
+        this.saveLastStudiedCard(topicId, cardIndex);
         const cardId = `${topicId}-${cardIndex}`;
         const studiedCards = this.getStudiedCards();
-        if (studiedCards.includes(cardId)) return;
-        studiedCards.push(cardId);
-        this.getProgressStorage().setItem(this.getProgressKey('flashlearn_studied_cards'), JSON.stringify(studiedCards));
-        this.syncAccountProgress();
+        if (!studiedCards.includes(cardId)) {
+            studiedCards.push(cardId);
+            try {
+                localStorage.setItem('flashlearn_studied_cards', JSON.stringify(studiedCards));
+            } catch (e) {
+                console.error('Gagal menyimpan kartu ke localStorage:', e);
+            }
+        }
+
+        if (this.isTopicCompleted(topicId)) {
+            this.markTopicCompleted(topicId);
+        }
+    },
+
+    saveLastStudiedCard(topicId, cardIndex) {
+        if (!topicId) return;
+        const safeIndex = Math.max(0, Number(cardIndex) || 0);
+        try {
+            localStorage.setItem('flashlearn_last_studied', JSON.stringify({
+                topicId,
+                cardIndex: safeIndex,
+                updatedAt: Date.now()
+            }));
+        } catch (e) {}
+    },
+
+    getLastStudiedCard() {
+        try {
+            const raw = localStorage.getItem('flashlearn_last_studied');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (parsed && parsed.topicId && FlashLearnData.getTopicById(parsed.topicId)) {
+                    const topic = FlashLearnData.getTopicById(parsed.topicId);
+                    const safeIndex = Math.min(Math.max(0, Number(parsed.cardIndex) || 0), topic.cards.length - 1);
+                    return { topicId: parsed.topicId, cardIndex: safeIndex };
+                }
+            }
+        } catch (e) {}
+
+        // Fallback ke kartu terakhir pada daftar kartu yang sudah dipelajari
+        const studied = this.getStudiedCards();
+        if (studied.length > 0) {
+            const lastEntry = studied[studied.length - 1];
+            const dashIdx = lastEntry.lastIndexOf('-');
+            if (dashIdx > 0) {
+                const topicId = lastEntry.slice(0, dashIdx);
+                const cardIndex = Number(lastEntry.slice(dashIdx + 1)) || 0;
+                const topic = FlashLearnData.getTopicById(topicId);
+                if (topic) {
+                    return {
+                        topicId,
+                        cardIndex: Math.min(Math.max(0, cardIndex), topic.cards.length - 1)
+                    };
+                }
+            }
+        }
+        return null;
+    },
+
+    resetAllProgress() {
+        try {
+            // Hapus semua key progres aktif
+            localStorage.removeItem('flashlearn_studied_cards');
+            localStorage.removeItem('flashlearn_last_studied');
+            localStorage.removeItem('flashlearn_scores');
+            localStorage.removeItem('flashlearn_active_route');
+            localStorage.removeItem('flashlearn_user');
+
+            // Hapus juga sisa key legacy/guest lama agar tidak termigrasi kembali saat reload
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (
+                    key.startsWith('flashlearn_scores_') ||
+                    key.startsWith('flashlearn_studied_cards_') ||
+                    key === 'flashlearn_guest_session'
+                )) {
+                    keysToRemove.push(key);
+                }
+            }
+            keysToRemove.forEach(k => localStorage.removeItem(k));
+
+            // Bersihkan sesi pengerjaan saat ini
+            sessionStorage.removeItem('flashlearn_quiz_last_result');
+            sessionStorage.removeItem('flashlearn_guest_session');
+            sessionStorage.removeItem('flashlearn_active_route');
+        } catch (e) {
+            console.error('Error saat mereset progres:', e);
+        }
+
+        this.renderPage(this.currentPage);
+        this.showToast('Data progres telah direset.');
     },
 
     // ── Toast Notification ──
-    showToast(message, type = 'success') {
+    toastTimeout: null,
+    showToast(message, type = 'success', sound = 'toast') {
         const toast = document.getElementById('toast');
         const toastMessage = document.getElementById('toast-message');
         const toastIcon = document.getElementById('toast-icon');
 
         if (!toast || !toastMessage) return;
 
+        if (typeof AudioManager !== 'undefined' && sound) {
+            AudioManager.play(sound);
+        }
+
         toastMessage.textContent = message;
-        toast.classList.remove('hidden', 'error');
+        toast.classList.remove('hidden', 'error', 'warning');
 
         if (type === 'error') {
             toast.classList.add('error');
-            if (toastIcon) toastIcon.textContent = 'error';
+            if (toastIcon) toastIcon.textContent = 'warning';
+        } else if (type === 'warning') {
+            toast.classList.add('warning');
+            if (toastIcon) toastIcon.textContent = 'warning_amber';
         } else {
             if (toastIcon) toastIcon.textContent = 'check_circle';
         }
@@ -878,11 +795,12 @@ const App = {
             toast.classList.add('show');
         });
 
-        // Auto hide
-        setTimeout(() => {
+        // Auto hide with timer clear on rapid clicks
+        if (this.toastTimeout) clearTimeout(this.toastTimeout);
+        this.toastTimeout = setTimeout(() => {
             toast.classList.remove('show');
             setTimeout(() => toast.classList.add('hidden'), 300);
-        }, 3000);
+        }, 3200);
     }
 };
 

@@ -3,12 +3,13 @@
  * Provides offline support and caching for PWA
  */
 
-const CACHE_NAME = 'flashlearn-v79';
+const CACHE_NAME = 'flashlearn-v141';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
     './css/style.css',
     './js/data.js',
+    './js/audio.js',
     './js/app.js',
     './js/pages/splash.js',
     './js/pages/home.js',
@@ -17,6 +18,9 @@ const ASSETS_TO_CACHE = [
     './js/pages/quiz.js',
     './assets/logo.png',
     './assets/app-icon.png',
+    './assets/bgm.wav?v=3',
+    './assets/card-flip.wav',
+    './assets/card-swipe.wav',
     './manifest.json'
 ];
 
@@ -48,7 +52,7 @@ self.addEventListener('activate', (event) => {
     );
 });
 
-// Fetch - Network first, fallback to cache for offline support
+// Fetch - Network first, fallback to cache for full offline PWA support
 self.addEventListener('fetch', (event) => {
     // Skip non-GET requests
     if (event.request.method !== 'GET') return;

@@ -2,7 +2,8 @@
     "name": "FlashLearn HTML",
     "short_name": "FlashLearn",
     "description": "Belajar HTML dengan Flashcard interaktif dan Quiz",
-    "start_url": "/flashlearn-web/",
+    "start_url": "./",
+    "scope": "./",
     "display": "standalone",
     "background_color": "#ffffff",
     "theme_color": "#f7f9fc",
@@ -21,9 +22,7 @@
             "purpose": "any"
         }
     ],
-    "categories": [
-        "education"
-    ],
+    "categories": ["education"],
     "lang": "id",
     "dir": "ltr"
 }

@@ -58,6 +58,10 @@ const QuizPage = {
                         <span class="material-icons-round btn-icon">play_arrow</span>
                         Mulai Latihan
                     </button>
+                    <button class="btn quiz-intro-history-button" onclick="QuizPage.viewLastResult()">
+                        <span class="material-icons-round btn-icon">history</span>
+                        Hasil Latihan Sebelumnya
+                    </button>
                     <button class="btn quiz-intro-learn-button" onclick="App.navigate('flashlearn')">
                         <span class="material-icons-round">auto_stories</span>
                         Belajar Dulu
@@ -65,6 +69,73 @@ const QuizPage = {
                 </div>
             </div>
         `;
+    },
+
+    getLastResult() {
+        try {
+            const raw = localStorage.getItem('flashlearn_last_quiz_result');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (parsed && typeof parsed.score === 'number') {
+                    return parsed;
+                }
+            }
+        } catch (e) { }
+
+        try {
+            const sessionRaw = sessionStorage.getItem('flashlearn_quiz_last_result');
+            if (sessionRaw) {
+                const parsed = JSON.parse(sessionRaw);
+                if (parsed && typeof parsed.score === 'number') {
+                    return parsed;
+                }
+            }
+        } catch (e) { }
+
+        const scores = typeof App !== 'undefined' && App.getScores ? App.getScores() : [];
+        if (scores && scores.length > 0) {
+            const last = scores[scores.length - 1];
+            return {
+                score: last.rawScore !== undefined && last.rawScore !== null ? last.rawScore : last.score,
+                exerciseResults: last.exerciseResults || []
+            };
+        }
+
+        return null;
+    },
+
+    viewLastResult() {
+        const lastResult = this.getLastResult();
+        if (!lastResult) {
+            this.showEmptyResultModal();
+            return;
+        }
+        this.restoreResults(lastResult);
+    },
+
+    showEmptyResultModal() {
+        const modal = document.getElementById('empty-result-modal');
+        if (modal) {
+            modal.classList.remove('hidden');
+        } else {
+            App.showToast('Belum ada hasil latihan sebelumnya. Selesaikan latihan pertamamu terlebih dahulu.', 'warning');
+        }
+    },
+
+    hideEmptyResultModal() {
+        const modal = document.getElementById('empty-result-modal');
+        if (modal) {
+            modal.classList.add('hidden');
+        }
+    },
+
+    renderIntroView() {
+        this.sessionActive = false;
+        App.saveActiveRoute('quiz', { quizView: 'intro' });
+        const container = document.getElementById('page-container');
+        if (container) {
+            this.renderIntoContainer(container, this.buildIntroHTML());
+        }
     },
 
     begin() {
@@ -93,17 +164,85 @@ const QuizPage = {
     startExercise() {
         this.clearBlockPointer();
         const exercise = this.exercises[this.currentIndex];
-        this.blockOrder = exercise.blocks.map(block => block.id).sort(() => Math.random() - 0.5);
-
-        if (this.blockOrder.every((id, index) => id === exercise.correctOrder[index])) {
-            this.blockOrder.reverse();
-        }
+        this.blockOrder = this.generateShuffledOrder(exercise);
 
         this.draggedBlockId = null;
         this.selectedBlockId = null;
         this.completed = false;
         this.attempts = 0;
         this.studyPromptShown = false;
+    },
+
+    shuffleArray(items) {
+        const array = [...items];
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            const temp = array[i];
+            array[i] = array[j];
+            array[j] = temp;
+        }
+        return array;
+    },
+
+    generateShuffledOrder(exercise) {
+        const originalIds = exercise.blocks.map(b => b.id);
+        if (originalIds.length <= 1) return [...originalIds];
+
+        if (!this.previousOrders) {
+            this.previousOrders = {};
+            try {
+                const stored = sessionStorage.getItem('flashlearn_quiz_prev_orders');
+                if (stored) this.previousOrders = JSON.parse(stored);
+            } catch (e) {}
+        }
+
+        const prevOrder = this.previousOrders[exercise.id];
+        const correctOrder = exercise.correctOrder;
+
+        let bestOrder = null;
+        let attempts = 0;
+
+        while (attempts < 50) {
+            const candidate = this.shuffleArray(originalIds);
+            attempts++;
+
+            // Pastikan tidak sama persis dengan urutan kunci jawaban
+            const isCorrect = candidate.every((id, idx) => id === correctOrder[idx]);
+            if (isCorrect) continue;
+
+            // Pastikan berbeda dari susunan sebelumnya jika ada riwayat sesi lalu
+            const isSameAsPrev = prevOrder && candidate.every((id, idx) => id === prevOrder[idx]);
+            if (isSameAsPrev && originalIds.length > 2 && attempts < 40) continue;
+
+            bestOrder = candidate;
+            break;
+        }
+
+        if (!bestOrder) {
+            bestOrder = this.shuffleArray(originalIds);
+            if (bestOrder.every((id, idx) => id === correctOrder[idx])) {
+                bestOrder.reverse();
+            }
+        }
+
+        // Simpan urutan pilihan ini agar pada sesi latihan berikutnya diacak berbeda lagi
+        this.previousOrders[exercise.id] = [...bestOrder];
+        try {
+            sessionStorage.setItem('flashlearn_quiz_prev_orders', JSON.stringify(this.previousOrders));
+        } catch (e) {}
+
+        return bestOrder;
+    },
+
+    clearActiveSession() {
+        this.sessionActive = false;
+        this.currentIndex = 0;
+        this.score = 0;
+        this.attempts = 0;
+        this.exerciseResults = [];
+        try {
+            sessionStorage.removeItem('flashlearn_quiz_last_result');
+        } catch (e) {}
     },
 
     buildExerciseHTML() {
@@ -115,7 +254,7 @@ const QuizPage = {
                 <div class="quiz-header stagger-item" style="animation-delay: 0.05s">
                     <div class="quiz-progress-info">
                         <span class="quiz-counter">Latihan ${this.currentIndex + 1} dari ${this.exercises.length}</span>
-                        <span class="quiz-score">Poin: ${this.score}</span>
+                        <span class="quiz-score">Skor: ${this.score}</span>
                     </div>
                     <div class="progress-bar-bg">
                         <div class="progress-bar-fill" style="width: ${progressPercent}%"></div>
@@ -151,7 +290,7 @@ const QuizPage = {
                         <span class="material-icons-round btn-icon">play_arrow</span>
                         Run Kode
                     </button>
-                    <button class="btn btn-primary" id="quiz-next-btn" onclick="QuizPage.nextExercise()" disabled>
+                    <button class="btn btn-primary ${this.completed ? '' : 'is-locked'}" id="quiz-next-btn" onclick="QuizPage.nextExercise()" ${this.completed ? '' : 'aria-disabled="true"'}>
                         <span class="material-icons-round btn-icon">arrow_forward</span>
                         ${this.currentIndex < this.exercises.length - 1 ? 'Latihan Berikutnya' : 'Lihat Hasil'}
                     </button>
@@ -231,6 +370,9 @@ const QuizPage = {
         if (!this.touchMoved) {
             this.touchMoved = true;
             this.draggedBlockId = this.touchBlockId;
+            if (typeof AudioManager !== 'undefined') {
+                AudioManager.play('drag');
+            }
             const source = document.getElementById(`code-block-${this.touchBlockId}`);
             source?.classList.add('dragging');
             this.createDragGhost(source, event);
@@ -261,6 +403,9 @@ const QuizPage = {
 
         if (shouldMove) {
             event.preventDefault();
+            if (typeof AudioManager !== 'undefined') {
+                AudioManager.play('drop');
+            }
             this.moveBlockBefore(id, targetId, insertAfter);
             this.selectedBlockId = null;
             this.renderBlockList();
@@ -440,6 +585,10 @@ const QuizPage = {
             this.clearBlockPointer();
             this.renderBlockList();
 
+            if (typeof AudioManager !== 'undefined') {
+                AudioManager.play('wrong');
+            }
+
             // Highlight blocks in wrong positions with red
             this.blockOrder.forEach((id, index) => {
                 if (id !== exercise.correctOrder[index]) {
@@ -455,7 +604,7 @@ const QuizPage = {
 
             if (feedback) {
                 feedback.className = 'code-quiz-feedback error';
-                feedback.innerHTML = '<span class="material-icons-round">error_outline</span> Kode belum dapat dijalankan. Susun kembali blok, lalu tekan Run Kode lagi.';
+                feedback.innerHTML = '<span class="material-icons-round">error_outline</span> Kode belum benar. Periksa susunan blok lalu Run Kode kembali sampai berhasil!';
             }
             this.updateRunStatus('error', 'Periksa susunan');
 
@@ -467,7 +616,10 @@ const QuizPage = {
         }
 
         this.completed = true;
-        const points = this.attempts === 1 ? 20 : this.attempts === 2 ? 15 : this.attempts === 3 ? 10 : 5;
+        if (typeof AudioManager !== 'undefined') {
+            AudioManager.play('correct');
+        }
+        const points = this.attempts === 1 ? 10 : this.attempts === 2 ? 8 : this.attempts === 3 ? 5 : 2;
         this.score += points;
         this.exerciseResults.push({
             title: exercise.title,
@@ -478,7 +630,7 @@ const QuizPage = {
 
         if (feedback) {
             feedback.className = 'code-quiz-feedback success';
-            feedback.innerHTML = `<span class="material-icons-round">check_circle</span> Susunan benar. +${points} poin dari percobaan ke-${this.attempts}.`;
+            feedback.innerHTML = `<span class="material-icons-round">check_circle</span> Susunan benar. +${points} skor dari percobaan ke-${this.attempts}.`;
         }
         this.updateRunStatus('success', 'Berhasil dijalankan');
 
@@ -488,12 +640,15 @@ const QuizPage = {
         if (frame) frame.srcdoc = this.getCurrentCode();
 
         const score = document.querySelector('.quiz-score');
-        if (score) score.textContent = `Poin: ${this.score}`;
+        if (score) score.textContent = `Skor: ${this.score}`;
 
         const checkButton = document.getElementById('check-order-btn');
         const nextButton = document.getElementById('quiz-next-btn');
         if (checkButton) checkButton.disabled = true;
-        if (nextButton) nextButton.disabled = false;
+        if (nextButton) {
+            nextButton.classList.remove('is-locked');
+            nextButton.removeAttribute('aria-disabled');
+        }
     },
 
     getCurrentCode() {
@@ -501,7 +656,7 @@ const QuizPage = {
         const rawCode = this.blockOrder
             .map(id => exercise.blocks.find(block => block.id === id).code)
             .join('\n');
-        const defaultStyle = '<style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#0f172a;margin:12px;background:#ffffff;line-height:1.5;}h1,h2,h3,p{color:#0f172a;margin-top:0;}</style>';
+        const defaultStyle = '<style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#0f172a;margin:12px;background:#ffffff;line-height:1.5;}h1,h2,h3,p{color:#0f172a;margin-top:0;margin-bottom:8px;}ul,ol{margin-top:0;margin-bottom:10px;padding-left:22px;}li{margin-bottom:4px;}table{border-collapse:collapse;width:100%;margin-top:4px;font-size:14px;}th,td{border:1px solid #cbd5e1;padding:6px 10px;text-align:left;}th{background:#f1f5f9;font-weight:700;}</style>';
         if (rawCode.includes('<head>')) {
             return rawCode.replace('<head>', `<head>${defaultStyle}`);
         }
@@ -516,7 +671,37 @@ const QuizPage = {
     },
 
     nextExercise() {
-        if (!this.completed) return;
+        if (!this.completed) {
+            // Mainkan SFX denied saat ditekan sebelum selesai
+            if (typeof AudioManager !== 'undefined') {
+                AudioManager.play('denied');
+            }
+
+            // Animasi getar / shake pada tombol
+            const nextButton = document.getElementById('quiz-next-btn');
+            if (nextButton) {
+                nextButton.classList.remove('btn-shake');
+                void nextButton.offsetWidth; // Reflow untuk memicu animasi
+                nextButton.classList.add('btn-shake');
+                setTimeout(() => nextButton.classList.remove('btn-shake'), 450);
+            }
+
+            // Pesan instruksi toast
+            const message = this.attempts > 0
+                ? 'Kode belum benar. Periksa susunan blok lalu Run Kode kembali sampai berhasil!'
+                : 'Selesaikan susunan kode di atas untuk melanjutkan ke latihan berikutnya';
+
+            App.showToast(message, 'warning', 'denied');
+
+            // Beri petunjuk visual jika feedback belum ada
+            const feedback = document.getElementById('code-quiz-feedback');
+            if (feedback && !feedback.classList.contains('error') && !feedback.classList.contains('success')) {
+                feedback.className = 'code-quiz-feedback error';
+                feedback.innerHTML = '<span class="material-icons-round">info</span> Selesaikan susunan kode di atas untuk melanjutkan ke latihan berikutnya.';
+            }
+
+            return;
+        }
 
         if (this.currentIndex < this.exercises.length - 1) {
             this.currentIndex++;
@@ -554,14 +739,11 @@ const QuizPage = {
             this.score = Number(params.score) || 0;
             this.exerciseResults = Array.isArray(params.exerciseResults) ? params.exerciseResults : [];
         } else {
-            try {
-                const saved = sessionStorage.getItem('flashlearn_quiz_last_result');
-                if (saved) {
-                    const parsed = JSON.parse(saved);
-                    this.score = parsed.score ?? 0;
-                    this.exerciseResults = parsed.exerciseResults ?? [];
-                }
-            } catch (e) { }
+            const last = this.getLastResult();
+            if (last) {
+                this.score = Number(last.score) || 0;
+                this.exerciseResults = Array.isArray(last.exerciseResults) ? last.exerciseResults : [];
+            }
         }
         this.showResults(true);
     },
@@ -572,50 +754,80 @@ const QuizPage = {
             this.exercises = FlashLearnData.getExercises();
         }
         const totalQuestions = this.exercises.length;
-        const maxScore = totalQuestions * 20;
+        const maxScore = totalQuestions * 10;
         const percent = Math.round((this.score / maxScore) * 100);
 
-        let title = 'Ayo Belajar Lagi!';
-        let kicker = 'Tetap Semangat!';
-        let message = 'Jangan patah semangat. Buka kembali materi FlashLearn dan coba selesaikan latihannya lagi.';
-        let icon = 'school';
-        let tierClass = 'tier-tryagain';
-        let statusBadge = 'Perlu Latihan';
-        let feedbackIcon = 'auto_stories';
-
+        let tierConfig;
         if (percent === 100) {
-            title = 'Sempurna!';
-            kicker = 'Pencapaian Tertinggi';
-            message = 'Luar biasa! Kamu berhasil menyusun seluruh latihan kode HTML dengan benar dan rapi.';
-            icon = 'emoji_events';
-            tierClass = 'tier-gold';
-            statusBadge = 'Sempurna';
-            feedbackIcon = 'stars';
+            tierConfig = {
+                tierClass: 'score-tier--gold',
+                shape: 'gold',
+                icon: 'emoji_events',
+                badgeIcon: 'workspace_premium',
+                badge: 'Master HTML',
+                subScore: 'Piala Emas',
+                rankTag: 'Peringkat 1',
+                kicker: 'Pencapaian Tertinggi',
+                title: 'Sempurna!',
+                message: 'Luar biasa! Kamu berhasil menyusun seluruh latihan kode HTML dengan sempurna dan rapi.',
+                feedbackIcon: 'workspace_premium'
+            };
         } else if (percent >= 80) {
-            title = 'Hebat Sekali!';
-            kicker = 'Hasil Membanggakan';
-            message = 'Pemahaman struktur kodemu sudah sangat solid. Sedikit lagi menuju akurasi sempurna!';
-            icon = 'military_tech';
-            tierClass = 'tier-silver';
-            statusBadge = 'Sangat Baik';
-            feedbackIcon = 'verified';
+            tierConfig = {
+                tierClass: 'score-tier--silver',
+                shape: 'silver',
+                icon: 'workspace_premium',
+                badgeIcon: 'military_tech',
+                badge: 'Level Perak',
+                subScore: 'Medali Perak',
+                rankTag: 'Skor Tinggi',
+                kicker: 'Hasil Membanggakan',
+                title: 'Hebat Sekali!',
+                message: 'Pemahaman struktur kodemu sudah sangat solid. Sedikit lagi menuju akurasi sempurna 100%!',
+                feedbackIcon: 'military_tech'
+            };
         } else if (percent >= 60) {
-            title = 'Bagus!';
-            kicker = 'Progres Mantap';
-            message = 'Kamu sudah menguasai sebagian besar struktur dasar HTML. Terus berlatih agar makin terbiasa!';
-            icon = 'thumb_up';
-            tierClass = 'tier-bronze';
-            statusBadge = 'Cukup Baik';
-            feedbackIcon = 'lightbulb';
+            tierConfig = {
+                tierClass: 'score-tier--bronze',
+                shape: 'bronze',
+                icon: 'local_fire_department',
+                badgeIcon: 'bolt',
+                badge: 'Level Perunggu',
+                subScore: 'Medali Perunggu',
+                rankTag: 'Maju Pesat',
+                kicker: 'Progres Mantap',
+                title: 'Bagus!',
+                message: 'Kamu sudah menguasai sebagian besar struktur dasar HTML. Terus berlatih agar makin terbiasa!',
+                feedbackIcon: 'bolt'
+            };
+        } else {
+            tierConfig = {
+                tierClass: 'score-tier--starter',
+                shape: 'starter',
+                icon: 'school',
+                badgeIcon: 'school',
+                badge: 'Pejuang HTML',
+                subScore: 'Lencana Latihan',
+                rankTag: 'Berjuang',
+                kicker: 'Tetap Semangat!',
+                title: 'Ayo Belajar Lagi!',
+                message: 'Jangan patah semangat. Buka kembali materi FlashLearn dan coba selesaikan latihannya lagi.',
+                feedbackIcon: 'school'
+            };
         }
 
         if (!skipSave) {
             App.saveScore(percent, this.score, maxScore);
             try {
-                sessionStorage.setItem('flashlearn_quiz_last_result', JSON.stringify({
+                const resultData = JSON.stringify({
                     score: this.score,
-                    exerciseResults: this.exerciseResults
-                }));
+                    maxScore: maxScore,
+                    percent: percent,
+                    exerciseResults: this.exerciseResults,
+                    date: new Date().toISOString()
+                });
+                sessionStorage.setItem('flashlearn_quiz_last_result', resultData);
+                localStorage.setItem('flashlearn_last_quiz_result', resultData);
             } catch (e) { }
         }
         App.saveActiveRoute('quiz', {
@@ -627,31 +839,47 @@ const QuizPage = {
         const container = document.getElementById('page-container');
         if (!container) return;
 
+        if (typeof AudioManager !== 'undefined') {
+            AudioManager.play('victory');
+        }
+
         this.renderIntoContainer(container, `
             <div class="page quiz-result">
                 <div class="result-confetti" aria-hidden="true">
                     <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
                 </div>
 
-                <div class="result-hero">
-                    <div class="result-badge-wrapper">
-                        <span class="result-sparkle s1" aria-hidden="true">✦</span>
-                        <span class="result-sparkle s2" aria-hidden="true">★</span>
-                        <div class="result-badge ${tierClass}" aria-hidden="true">
-                            <span class="material-icons-round">${icon}</span>
+                <div class="result-hero ${tierConfig.tierClass}">
+                    <div class="result-trophy-stage">
+                        <div class="result-trophy-halo" aria-hidden="true"></div>
+
+                        <div class="result-trophy-emblem trophy-shape--${tierConfig.shape}" aria-hidden="true">
+                            <span class="material-icons-round result-trophy-icon">${tierConfig.icon}</span>
+                            <div class="result-trophy-sparkles">
+                                <span class="sparkle-star s1">✦</span>
+                                <span class="sparkle-star s2">★</span>
+                                <span class="sparkle-star s3">✦</span>
+                            </div>
                         </div>
-                        <span class="result-sparkle s3" aria-hidden="true">✦</span>
+
+                        <div class="trophy-ground-shadow" aria-hidden="true"></div>
                     </div>
+
+                    <div class="result-tier-banner">
+                        <span class="material-icons-round" aria-hidden="true">${tierConfig.badgeIcon}</span>
+                        <span>${tierConfig.badge}</span>
+                    </div>
+
                     <span class="result-kicker">
                         <span class="material-icons-round kicker-icon">auto_awesome</span>
-                        ${kicker}
+                        ${tierConfig.kicker}
                     </span>
-                    <h2 class="result-title">${title}</h2>
+                    <h2 class="result-title">${tierConfig.title}</h2>
                 </div>
 
                 <div class="result-score-card">
                     <div class="result-score-ring-wrap">
-                        <div class="result-score-ring ${tierClass}" style="--score: ${percent}">
+                        <div class="result-score-ring ${tierConfig.tierClass}" style="--score: ${percent}">
                             <div class="result-score-ring-center">
                                 <span class="result-score-number">${percent}%</span>
                                 <span class="result-score-label">Akurasi</span>
@@ -666,23 +894,23 @@ const QuizPage = {
                             </div>
                             <div class="stat-chip-content">
                                 <strong>${this.score} <span class="stat-max">/ ${maxScore}</span></strong>
-                                <small>Poin Diperoleh</small>
+                                <small>Skor Diperoleh</small>
                             </div>
                         </div>
                         <div class="result-stat-chip">
                             <div class="stat-chip-icon status-icon">
-                                <span class="material-icons-round">check_circle</span>
+                                <span class="material-icons-round">${tierConfig.badgeIcon}</span>
                             </div>
                             <div class="stat-chip-content">
-                                <strong>${statusBadge}</strong>
-                                <small>Status Latihan</small>
+                                <strong>${tierConfig.badge}</strong>
+                                <small>Peringkat Latihan</small>
                             </div>
                         </div>
                     </div>
 
                     <div class="result-message-box">
-                        <span class="material-icons-round result-message-icon">${feedbackIcon}</span>
-                        <p class="result-message">${message}</p>
+                        <span class="material-icons-round result-message-icon">${tierConfig.feedbackIcon}</span>
+                        <p class="result-message">${tierConfig.message}</p>
                     </div>
                 </div>
 
@@ -724,9 +952,9 @@ const QuizPage = {
                         <span class="material-icons-round btn-icon" aria-hidden="true">replay</span>
                         <span>Coba Lagi</span>
                     </button>
-                    <button id="result-home-btn" class="btn btn-secondary result-home-button" type="button" onclick="App.navigate('home')" aria-label="Kembali ke Beranda">
-                        <span class="material-icons-round btn-icon" aria-hidden="true">home</span>
-                        <span>Ke Beranda</span>
+                    <button id="result-intro-btn" class="btn btn-secondary result-home-button" type="button" onclick="QuizPage.renderIntroView()" aria-label="Kembali ke menu awal latihan">
+                        <span class="material-icons-round btn-icon" aria-hidden="true">arrow_back</span>
+                        <span>Menu Latihan</span>
                     </button>
                 </div>
 

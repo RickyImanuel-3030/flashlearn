@@ -19,20 +19,20 @@
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
     <!-- Material Icons -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
     
     <!-- Styles -->
-    <link rel="stylesheet" href="css/style.css?v=72">
+    <link rel="stylesheet" href="css/style.css?v=109">
     
     <!-- Cache Buster Script -->
     <script>
         if ('caches' in window) {
             caches.keys().then(keys => {
                 keys.forEach(k => {
-                    if (k !== 'flashlearn-v79') caches.delete(k);
+                    if (k !== 'flashlearn-v141') caches.delete(k);
                 });
             });
         }
@@ -62,11 +62,8 @@
                     <span id="header-subtitle" class="header-subtitle">HTML</span>
                 </div>
                 <div class="header-actions">
-                    <div id="user-avatar" class="user-avatar hidden" role="button" tabindex="0" aria-label="Profil pengguna - Klik untuk keluar">
-                        <img id="user-avatar-img" src="" alt="Foto profil akun" class="avatar-img">
-                    </div>
-                    <button id="login-btn" class="header-btn glass-btn" aria-label="Buka form masuk akun">
-                        <span class="material-icons-round" aria-hidden="true">person</span>
+                    <button id="header-settings-btn" class="header-btn" type="button" aria-label="Buka Pengaturan" onclick="App.showSettingsModal()">
+                        <span class="material-icons-round" aria-hidden="true">settings</span>
                     </button>
                 </div>
             </div>
@@ -104,33 +101,6 @@
         <span id="toast-message"></span>
     </div>
 
-    <!-- Login Modal -->
-    <div id="login-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="login-modal-title">
-        <div class="modal-content glass-card">
-            <button id="close-modal-btn" class="modal-close-btn" type="button" aria-label="Tutup jendela masuk">
-                <span class="material-icons-round" aria-hidden="true">close</span>
-            </button>
-            <div class="modal-body">
-                <img src="assets/logo.png?v=5" alt="FlashLearn Logo" class="modal-logo">
-                <h2 id="login-modal-title" class="modal-title">Masuk ke FlashLearn</h2>
-                <p class="modal-desc">Masuk untuk menyimpan progres</p>
-                <label class="modal-form-label" for="login-email-input">Email</label>
-                <input id="login-email-input" class="modal-form-input" type="email" autocomplete="email" placeholder="nama@email.com" required>
-                <label class="modal-form-label" for="login-password-input">Password</label>
-                <input id="login-password-input" class="modal-form-input" type="password" autocomplete="current-password" placeholder="Password" required>
-                <div class="modal-auth-actions">
-                    <button id="modal-login-btn" class="btn btn-primary" type="button" aria-label="Masuk ke akun">
-                        <span>Masuk</span>
-                    </button>
-                    <button id="modal-register-btn" class="btn btn-secondary" type="button" aria-label="Daftar akun baru">
-                        <span>Buat Akun</span>
-                    </button>
-                </div>
-                <p class="modal-footer-text">🔒 Data kamu aman dan terenkripsi</p>
-            </div>
-        </div>
-    </div>
-
     <!-- Quiz Exit Confirmation -->
     <div id="quiz-exit-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="quiz-exit-title">
         <div class="modal-content quiz-exit-content">
@@ -148,6 +118,23 @@
         </div>
     </div>
 
+    <!-- Empty Quiz Result Notice Modal -->
+    <div id="empty-result-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="empty-result-title">
+        <div class="modal-content quiz-exit-content">
+            <div class="quiz-exit-body">
+                <div class="quiz-exit-icon" aria-hidden="true" style="background: rgba(124, 58, 237, 0.12); color: #7c3aed;">
+                    <span class="material-icons-round">history_toggle_off</span>
+                </div>
+                <h2 id="empty-result-title">Belum Ada Hasil Latihan</h2>
+                <p>Kamu belum pernah menyelesaikan sesi latihan kode HTML. Selesaikan latihan pertamamu untuk melihat evaluasi skor dan ringkasan di sini!</p>
+                <div class="quiz-exit-actions">
+                    <button class="btn btn-secondary" type="button" onclick="QuizPage.hideEmptyResultModal()">Nanti Saja</button>
+                    <button class="btn btn-primary" type="button" onclick="QuizPage.hideEmptyResultModal(); QuizPage.begin();">Mulai Latihan</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Study Reminder -->
     <div id="study-prompt-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="study-prompt-title">
         <div class="modal-content quiz-exit-content study-prompt-content">
@@ -156,10 +143,135 @@
                     <span class="material-icons-round">menu_book</span>
                 </div>
                 <h2 id="study-prompt-title">Pelajari materi dulu?</h2>
-                <p>Kamu sudah salah 3 kali pada soal ini. Tinjau materi terkait agar lebih mudah menyusun kode.</p>
+                <p>Kamu sudah salah 3 kali pada soal ini. Pelajari kembali materi terkait agar lebih mudah menyusun kode.</p>
                 <div class="quiz-exit-actions">
                     <button id="study-prompt-continue" class="btn btn-secondary" type="button" aria-label="Tetap lanjut mencoba latihan">Tetap Mencoba</button>
                     <button id="study-prompt-review" class="btn btn-primary" type="button" aria-label="Buka materi flashcard untuk dipelajari">Pelajari Materi</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
+        <div class="modal-content settings-modal-content">
+            <button class="modal-close-btn" type="button" aria-label="Tutup Pengaturan" onclick="App.hideSettingsModal()">
+                <span class="material-icons-round" aria-hidden="true">close</span>
+            </button>
+            <div class="settings-modal-header">
+                <div class="settings-header-icon" aria-hidden="true">
+                    <span class="material-icons-round">settings</span>
+                </div>
+                <div>
+                    <h2 id="settings-modal-title" class="settings-modal-title">Pengaturan</h2>
+                </div>
+            </div>
+            <div class="settings-modal-body">
+                <div class="settings-section">
+                    <div class="settings-section-title">Suara</div>
+                    <div class="settings-audio-group">
+                        <div class="settings-switch-item">
+                            <div class="settings-item-info">
+                                <div class="settings-item-label">
+                                    <span class="material-icons-round settings-item-icon audio-icon" aria-hidden="true">music_note</span>
+                                    <span>Musik Latar (BGM)</span>
+                                </div>
+                            </div>
+                            <label class="toggle-switch" aria-label="Toggle Musik Latar">
+                                <input type="checkbox" id="toggle-bgm" checked onchange="AudioManager.setBgmEnabled(this.checked)">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="settings-switch-item">
+                            <div class="settings-item-info">
+                                <div class="settings-item-label">
+                                    <span class="material-icons-round settings-item-icon audio-icon" aria-hidden="true">volume_up</span>
+                                    <span>Efek Suara (SFX)</span>
+                                </div>
+                            </div>
+                            <label class="toggle-switch" aria-label="Toggle Efek Suara">
+                                <input type="checkbox" id="toggle-sfx" checked onchange="AudioManager.setSfxEnabled(this.checked)">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="settings-section-title">Data &amp; Progres</div>
+                    <div class="settings-item-card">
+                        <div class="settings-item-info">
+                            <div class="settings-item-label">
+                                <span class="material-icons-round settings-item-icon danger-icon" aria-hidden="true">restart_alt</span>
+                                <span>Reset Progres Belajar</span>
+                            </div>
+                            <p class="settings-item-desc">Hapus seluruh riwayat kartu yang dipelajari dan nilai latihan soal.</p>
+                        </div>
+                        <button id="trigger-reset-progress-btn" class="btn btn-outline-danger btn-sm" type="button" onclick="App.showResetConfirmModal()">
+                            <span class="material-icons-round btn-icon-sm" aria-hidden="true">delete_sweep</span>
+                            <span>Reset Progres</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="settings-section-title">Tentang Aplikasi</div>
+                    <div class="settings-app-info">
+                        <div class="settings-info-row">
+                            <span class="info-label">Aplikasi</span>
+                            <span class="info-val">FlashLearn HTML</span>
+                        </div>
+                        <div class="settings-info-row">
+                            <span class="info-label">Pengembang</span>
+                            <span class="info-val">Ricky Imanuel S. Ziliwu</span>
+                        </div>
+                        <div class="settings-info-row">
+                            <span class="info-label">Versi</span>
+                            <span class="info-val">1.0.0</span>
+                        </div>
+                        <div class="settings-info-row">
+                            <span class="info-label">Penyimpanan</span>
+                            <span class="info-val">Lokal (Perangkat Ini)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reset Progress Confirmation Modal -->
+    <div id="reset-confirm-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="reset-confirm-title">
+        <div class="modal-content reset-confirm-content">
+            <div class="reset-confirm-body">
+                <div class="reset-confirm-icon" aria-hidden="true">
+                    <span class="material-icons-round">warning</span>
+                </div>
+                <h2 id="reset-confirm-title" class="reset-confirm-title">Reset Seluruh Progres</h2>
+                <div class="reset-confirm-message">
+                    <p>Apakah kamu yakin ingin mereset progres belajar?</p>
+                    <div class="reset-confirm-details">
+                        <div class="reset-detail-item">
+                            <span class="material-icons-round detail-item-icon" aria-hidden="true">check</span>
+                            <span>Riwayat kartu flashcard yang telah dipelajari akan kembali dari awal</span>
+                        </div>
+                        <div class="reset-detail-item">
+                            <span class="material-icons-round detail-item-icon" aria-hidden="true">check</span>
+                            <span>Skor dan riwayat pengerjaan latihan soal akan dikosongkan</span>
+                        </div>
+                    </div>
+                    <p class="reset-warning-note">
+                        <span class="material-icons-round" aria-hidden="true">info</span>
+                        Data yang telah dihapus tidak dapat dipulihkan kembali.
+                    </p>
+                </div>
+                <div class="reset-confirm-actions">
+                    <button id="cancel-reset-btn" class="btn btn-secondary" type="button" onclick="App.hideResetConfirmModal()" aria-label="Batalkan reset progres">
+                        Batalkan
+                    </button>
+                    <button id="proceed-reset-btn" class="btn btn-danger" type="button" onclick="App.confirmResetProgress()" aria-label="Lanjutkan reset progres">
+                        <span class="material-icons-round btn-icon-sm" aria-hidden="true">delete_forever</span>
+                        Lanjutkan
+                    </button>
                 </div>
             </div>
         </div>
@@ -184,43 +296,21 @@
         <div class="splash-particles" id="splash-particles"></div>
     </div>
 
-    <!-- Login Gate -->
-    <section id="auth-gate" class="auth-gate hidden" aria-labelledby="auth-gate-title">
-        <div class="auth-gate-card">
-            <img src="assets/logo.png?v=8" alt="FlashLearn Logo" class="auth-gate-logo">
-            <p class="auth-gate-kicker">Selamat datang di</p>
-            <h2 id="auth-gate-title">FlashLearn</h2>
-            <p class="auth-gate-desc">Masuk untuk menyimpan progres belajar, atau mulai cepat sebagai guest.</p>
-            <form id="auth-email-form" class="auth-email-form">
-                <label for="auth-email-input">Email</label>
-                <input id="auth-email-input" type="email" autocomplete="email" placeholder="nama@email.com" required>
-                <label for="auth-password-input">Password</label>
-                <input id="auth-password-input" type="password" autocomplete="current-password" placeholder="Minimal 6 karakter" minlength="6" required>
-                <div class="auth-actions-row">
-                    <button id="auth-login-btn" class="btn btn-primary" type="submit">Masuk</button>
-                    <button id="auth-register-btn" class="btn btn-secondary" type="button">Buat Akun</button>
-                </div>
-            </form>
-            <div class="auth-divider"><span>atau</span></div>
-            <button id="guest-login-btn" class="btn btn-secondary auth-guest-btn" type="button">Lanjut sebagai Guest</button>
-            <p class="auth-gate-note"><span class="material-icons-round">info</span>Akun baru dibuat saat pertama kali menggunakan email ini.</p>
-        </div>
-    </section>
-
     <!-- Scripts -->
-    <script src="js/data.js?v=8"></script>
+    <script src="js/data.js?v=15"></script>
+    <script src="js/audio.js?v=13"></script>
     <script src="js/pages/splash.js?v=8"></script>
-    <script src="js/pages/home.js?v=12"></script>
-    <script src="js/pages/flashlearn.js?v=6"></script>
-    <script src="js/pages/flashcard.js?v=12"></script>
-    <script src="js/pages/quiz.js?v=33"></script>
-    <script src="js/app.js?v=32"></script>
+    <script src="js/pages/home.js?v=23"></script>
+    <script src="js/pages/flashlearn.js?v=7"></script>
+    <script src="js/pages/flashcard.js?v=30"></script>
+    <script src="js/pages/quiz.js?v=45"></script>
+    <script src="js/app.js?v=47"></script>
 
     <!-- Service Worker Registration -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=79')
+                navigator.serviceWorker.register('sw.js?v=141')
                     .then(reg => {
                         console.log('SW registered:', reg.scope);
                         reg.update();
