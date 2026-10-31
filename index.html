@@ -12,9 +12,9 @@
     <title>FlashLearn HTML - Belajar HTML Interaktif</title>
     
     <!-- PWA Manifest -->
-    <link rel="manifest" href="manifest.json?v=2">
-    <link rel="icon" type="image/png" href="assets/app-icon.png?v=1">
-    <link rel="apple-touch-icon" href="assets/app-icon.png?v=1">
+    <link rel="manifest" href="manifest.json?v=3">
+    <link rel="icon" type="image/png" href="icons/icon-192x192.png">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -32,7 +32,7 @@
         if ('caches' in window) {
             caches.keys().then(keys => {
                 keys.forEach(k => {
-                    if (k !== 'flashlearn-v141') caches.delete(k);
+                    if (k !== 'flashlearn-v142') caches.delete(k);
                 });
             });
         }
@@ -310,7 +310,7 @@
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=141')
+                navigator.serviceWorker.register('sw.js?v=142')
                     .then(reg => {
                         console.log('SW registered:', reg.scope);
                         reg.update();
