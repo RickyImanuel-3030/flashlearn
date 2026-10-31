@@ -3,7 +3,7 @@
  * Provides offline support and caching for PWA
  */
 
-const CACHE_NAME = 'flashlearn-v144';
+const CACHE_NAME = 'flashlearn-v145';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -70,12 +70,12 @@ self.addEventListener('fetch', (event) => {
                 return response;
             })
             .catch(() => {
-                return caches.match(event.request).then(cachedResponse => {
+                return caches.match(event.request, { ignoreSearch: true }).then(cachedResponse => {
                     if (cachedResponse) {
                         return cachedResponse;
                     }
                     if (event.request.mode === 'navigate') {
-                        return caches.match('./index.html');
+                        return caches.match('./index.html', { ignoreSearch: true });
                     }
                 });
             })
