@@ -853,16 +853,28 @@ code, pre, kbd, samp {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: flex-end;
     text-align: center;
-    gap: clamp(6px, 1.1vh, 10px);
+    gap: clamp(6px, 1.25vh, 12px);
     height: 100%;
-    min-height: 0;
-    overflow: hidden;
+    min-height: min-content;
+    padding-top: clamp(8px, 1.6vh, 16px);
+    padding-bottom: clamp(8px, 1.4vh, 14px);
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+/* Ruang adaptif antara Header dan Logo (menyerap ruang lebih di layar tinggi) */
+.home-page::before {
+    content: '';
+    flex: 1 1 clamp(4px, 1.8vh, 22px);
+    min-height: clamp(2px, 0.8vh, 12px);
+    width: 100%;
+    pointer-events: none;
 }
 
 .page-container:has(.home-page) {
-    overflow-y: hidden;
+    overflow-y: auto;
 }
 
 .home-hero {
@@ -879,8 +891,8 @@ code, pre, kbd, samp {
 
 .home-logo {
     width: auto;
-    height: clamp(140px, 26vh, 215px);
-    max-width: min(76vw, 240px);
+    height: clamp(115px, 22.5vh, 205px);
+    max-width: min(74vw, 230px);
     max-height: 100%;
     object-fit: contain;
     filter: drop-shadow(0 6px 18px rgba(249, 115, 22, 0.22));
@@ -979,12 +991,12 @@ code, pre, kbd, samp {
 .home-bento-grid {
     display: grid;
     grid-template-columns: 0.92fr 1.08fr;
-    grid-template-rows: 1fr 1fr;
-    gap: clamp(6px, 1.6vw, 9px);
+    grid-template-rows: minmax(min-content, 1fr) minmax(min-content, 1fr);
+    gap: clamp(6px, 1.6vw, 10px);
     width: 100%;
-    flex: 1 1 auto;
-    min-height: 175px;
-    max-height: 290px;
+    flex: 2 1 auto;
+    min-height: min-content;
+    max-height: clamp(275px, 41vh, 360px);
 }
 
 .bento-card {
@@ -992,7 +1004,7 @@ code, pre, kbd, samp {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    padding: clamp(7px, 1.15vh, 10px) clamp(8px, 2vw, 11px);
+    padding: clamp(7px, 1.15vh, 11px) clamp(8px, 2vw, 11px);
     border-radius: var(--radius-md);
     border: 1px solid var(--border-subtle);
     background: var(--bg-card);
@@ -1001,7 +1013,7 @@ code, pre, kbd, samp {
     text-align: left;
     cursor: pointer;
     overflow: hidden;
-    min-height: 0;
+    min-height: min-content;
     transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
 }
 
@@ -1191,14 +1203,14 @@ code, pre, kbd, samp {
     width: 100%;
     flex: 1 1 auto;
     min-height: 0;
-    padding: 5px 0;
+    padding: 3px 0;
     z-index: 1;
 }
 
 .bento-trophy-halo {
     position: absolute;
-    width: clamp(92px, 14.5vh, 120px);
-    height: clamp(92px, 14.5vh, 120px);
+    width: clamp(82px, 13vh, 115px);
+    height: clamp(82px, 13vh, 115px);
     border-radius: 50%;
     background: radial-gradient(circle, var(--tier-accent-light, #fbbf24) 0%, var(--tier-accent, #d97706) 42%, transparent 72%);
     filter: blur(16px);
@@ -1218,9 +1230,9 @@ code, pre, kbd, samp {
 
 .bento-trophy-emblem {
     position: relative;
-    width: clamp(64px, 10.2vh, 78px);
-    height: clamp(64px, 10.2vh, 78px);
-    border-radius: 20px;
+    width: clamp(54px, 8.8vh, 72px);
+    height: clamp(54px, 8.8vh, 72px);
+    border-radius: 18px;
     display: grid;
     place-items: center;
     background: linear-gradient(145deg, #ffffff, var(--tier-emblem-bg));
@@ -1230,6 +1242,7 @@ code, pre, kbd, samp {
                 inset 0 -4px 8px color-mix(in srgb, var(--tier-accent) 25%, transparent);
     animation: trophyFloating 3s ease-in-out infinite alternate;
     overflow: hidden;
+    flex-shrink: 0;
     z-index: 2;
 }
 
@@ -1239,15 +1252,16 @@ code, pre, kbd, samp {
 
 /* Ground Shadow for Floating Levitation Effect */
 .trophy-ground-shadow {
-    width: 50px;
-    height: 8px;
+    width: 46px;
+    height: 7px;
     background: radial-gradient(ellipse, color-mix(in srgb, var(--tier-accent, #64748b) 55%, #0f172a 45%) 0%, transparent 72%);
     border-radius: 50%;
-    margin-top: 5px;
-    margin-bottom: 2px;
+    margin-top: 4px;
+    margin-bottom: 1px;
     filter: blur(3px);
     animation: trophyShadowPulse 3s ease-in-out infinite alternate;
     pointer-events: none;
+    flex-shrink: 0;
     z-index: 1;
 }
 
@@ -1492,12 +1506,13 @@ code, pre, kbd, samp {
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin-top: 5px;
-    margin-bottom: 2px;
+    margin-top: 3px;
+    margin-bottom: 1px;
+    flex-shrink: 0;
 }
 
 .bento-trophy-score {
-    font-size: clamp(24px, 3.6vh, 32px);
+    font-size: clamp(22px, 3.3vh, 30px);
     font-weight: 900;
     line-height: 1;
     color: var(--tier-accent-dark);
@@ -1510,7 +1525,7 @@ code, pre, kbd, samp {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2.5px;
+    gap: 3px;
     width: 100%;
     flex-shrink: 0;
     position: relative;
@@ -1536,14 +1551,13 @@ code, pre, kbd, samp {
 }
 
 .bento-score-motivation {
-    font-size: clamp(11px, 1.45vh, 12px);
+    font-size: clamp(10.5px, 1.38vh, 11.5px);
     font-weight: 600;
-    line-height: 1.3;
+    line-height: 1.28;
     color: var(--text-secondary);
     margin: 0;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    width: 100%;
+    overflow-wrap: break-word;
 }
 
 /* ── 2. Kolom Kanan Atas: Lanjutkan Pembelajaran ── */
@@ -1590,9 +1604,7 @@ code, pre, kbd, samp {
     color: var(--cont-accent);
     font-size: 9.5px;
     font-weight: 800;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    line-height: 1.2;
 }
 
 .bento-continue-pill .material-icons-round {
@@ -1646,32 +1658,26 @@ code, pre, kbd, samp {
     font-size: clamp(11px, 1.5vh, 12.5px);
     font-weight: 800;
     color: var(--text-primary);
-    line-height: 1.15;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    line-height: 1.18;
+    overflow-wrap: break-word;
 }
 
 .bento-continue-sub {
     font-size: 9.5px;
     font-weight: 700;
     color: var(--cont-accent);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    line-height: 1.2;
+    overflow-wrap: break-word;
     margin-top: 1px;
 }
 
 .bento-continue-narrative {
-    font-size: clamp(11px, 1.45vh, 12px);
+    font-size: clamp(10.5px, 1.38vh, 11.5px);
     font-weight: 600;
-    line-height: 1.3;
+    line-height: 1.28;
     color: var(--text-secondary);
     margin: 0;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+    overflow-wrap: break-word;
     position: relative;
     z-index: 1;
 }
@@ -1819,15 +1825,12 @@ code, pre, kbd, samp {
 }
 
 .bento-mastery-narrative {
-    font-size: clamp(11px, 1.45vh, 12px);
+    font-size: clamp(10.5px, 1.38vh, 11.5px);
     font-weight: 600;
-    line-height: 1.3;
+    line-height: 1.28;
     color: var(--text-secondary);
     margin: 0;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+    overflow-wrap: break-word;
 }
 
 /* ── Buttons ── */
@@ -5235,69 +5238,69 @@ code, pre, kbd, samp {
 /* ── Responsive: Standard Mobile Phones (width <= 390px) ── */
 @media (max-width: 390px) {
     .home-page {
-        gap: clamp(4px, 0.9vh, 7px);
+        gap: clamp(5px, 1.15vh, 11px);
     }
 
     .home-logo {
-        height: clamp(132px, 24vh, 195px);
+        height: clamp(110px, 22vh, 195px);
         max-width: min(74vw, 215px);
     }
 
     .home-greeting {
-        font-size: 12px;
+        font-size: clamp(12px, 1.65vh, 13.5px);
     }
 
-    /* Progress card lebih compact */
+    /* Progress card proporsional terhadap tinggi layar */
     .home-progress-card {
-        padding: 7px 9px;
+        padding: clamp(7px, 1.1vh, 10px) 9px;
     }
 
     .home-mascot {
-        width: 26px;
-        height: 26px;
-        font-size: 16px;
+        width: clamp(26px, 3.8vh, 30px);
+        height: clamp(26px, 3.8vh, 30px);
+        font-size: clamp(16px, 2.3vh, 18px);
         border-radius: 8px;
     }
 
     .home-progress-copy strong {
-        font-size: 11.5px;
+        font-size: clamp(11.5px, 1.6vh, 12.5px);
     }
 
     .home-progress-copy div span {
-        font-size: 10px;
+        font-size: clamp(10px, 1.4vh, 10.5px);
     }
 
     .home-progress-copy b {
-        font-size: 13.5px;
+        font-size: clamp(13.5px, 1.85vh, 14.5px);
     }
 
     .home-progress-track {
-        height: 5px;
+        height: 5.5px;
         margin-top: 6px;
     }
 
-    /* 3 Bento Stats lebih kecil & turun ke bawah */
+    /* 3 Bento Stats adaptif vertikal & horizontal */
     .home-bento-grid {
-        gap: 6px;
+        gap: clamp(6px, 1.6vw, 8px);
     }
 
     .bento-card {
-        padding: 6px 7.5px;
-        border-radius: 10px;
+        padding: clamp(6px, 1.1vh, 10px) 7.5px;
+        border-radius: 11px;
     }
 
     .bento-card-label {
-        font-size: 10.5px;
+        font-size: clamp(10.5px, 1.45vh, 12px);
     }
 
     .bento-trophy-halo {
-        width: 78px;
-        height: 78px;
+        width: clamp(76px, 12vh, 104px);
+        height: clamp(76px, 12vh, 104px);
     }
 
     .bento-trophy-emblem {
-        width: 54px;
-        height: 54px;
+        width: clamp(50px, 8.4vh, 66px);
+        height: clamp(50px, 8.4vh, 66px);
         border-radius: 17px;
         border-width: 2.5px;
     }
@@ -5307,7 +5310,7 @@ code, pre, kbd, samp {
     .trophy-shape--silver .bento-trophy-icon,
     .trophy-shape--bronze .bento-trophy-icon,
     .trophy-shape--starter .bento-trophy-icon {
-        font-size: 30px;
+        font-size: clamp(28px, 4.6vh, 38px);
     }
 
     .trophy-ground-shadow {
@@ -5316,12 +5319,12 @@ code, pre, kbd, samp {
     }
 
     .bento-trophy-score {
-        font-size: 22px;
+        font-size: clamp(21px, 3.2vh, 28px);
     }
 
     .bento-tier-banner {
-        font-size: 9px;
-        padding: 1.5px 6px;
+        font-size: clamp(9px, 1.25vh, 10px);
+        padding: 2px 7px;
     }
 
     .bento-tier-banner .material-icons-round {
@@ -5339,20 +5342,20 @@ code, pre, kbd, samp {
     }
 
     .bento-continue-title {
-        font-size: 10.5px;
+        font-size: clamp(10.5px, 1.45vh, 12px);
     }
 
     .bento-continue-sub,
     .bento-continue-pill,
     .bento-mastery-counter {
-        font-size: 9px;
+        font-size: clamp(9px, 1.25vh, 9.5px);
     }
 
     .bento-score-motivation,
     .bento-continue-narrative,
     .bento-mastery-narrative {
-        font-size: 10.5px;
-        line-height: 1.25;
+        font-size: clamp(10px, 1.32vh, 11px);
+        line-height: 1.26;
     }
 
     .mastery-topic-dot {
@@ -5360,7 +5363,7 @@ code, pre, kbd, samp {
     }
 
     .mastery-topic-dot .mastery-dot-icon {
-        font-size: 11px;
+        font-size: clamp(11px, 1.4vh, 13px);
     }
 
     /* Buttons & Quiz */
@@ -5405,8 +5408,8 @@ code, pre, kbd, samp {
     }
 
     .home-logo {
-        height: clamp(110px, 21vh, 155px);
-        max-width: min(68vw, 175px);
+        height: clamp(100px, 19.5vh, 150px);
+        max-width: min(68vw, 170px);
     }
 
     .home-greeting {
@@ -5421,6 +5424,13 @@ code, pre, kbd, samp {
         padding: 5px 6px;
     }
 
+    .bento-score-motivation,
+    .bento-continue-narrative,
+    .bento-mastery-narrative {
+        font-size: 9.5px;
+        line-height: 1.22;
+    }
+
     .flashcard-deck {
         max-width: min(220px, 72vw);
     }
@@ -5428,6 +5438,37 @@ code, pre, kbd, samp {
     .toast {
         padding: 8px 14px;
         font-size: 11.5px;
+    }
+}
+
+/* ── Responsive: Medium-Short Viewports (height <= 700px) ── */
+@media (max-height: 700px) {
+    .home-page {
+        gap: clamp(4px, 0.9vh, 7px);
+        padding-top: 6px;
+        padding-bottom: 6px;
+    }
+
+    .home-logo {
+        height: clamp(105px, 20vh, 145px);
+        max-width: min(66vw, 175px);
+    }
+
+    .bento-trophy-emblem {
+        width: clamp(46px, 7.6vh, 56px);
+        height: clamp(46px, 7.6vh, 56px);
+    }
+
+    .bento-trophy-icon,
+    .trophy-shape--gold .bento-trophy-icon,
+    .trophy-shape--silver .bento-trophy-icon,
+    .trophy-shape--bronze .bento-trophy-icon,
+    .trophy-shape--starter .bento-trophy-icon {
+        font-size: clamp(25px, 4.1vh, 32px);
+    }
+
+    .bento-trophy-score {
+        font-size: clamp(19px, 3vh, 23px);
     }
 }
 
@@ -5439,8 +5480,8 @@ code, pre, kbd, samp {
     }
 
     .home-logo {
-        height: clamp(105px, 20vh, 150px);
-        max-width: min(64vw, 165px);
+        height: clamp(92px, 18vh, 130px);
+        max-width: min(62vw, 155px);
     }
 
     .splash-logo {
@@ -5449,8 +5490,8 @@ code, pre, kbd, samp {
     }
 
     .bento-trophy-emblem {
-        width: clamp(50px, 8vh, 62px);
-        height: clamp(50px, 8vh, 62px);
+        width: clamp(42px, 7.2vh, 52px);
+        height: clamp(42px, 7.2vh, 52px);
     }
 
     .bento-card {

@@ -25,14 +25,14 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
     
     <!-- Styles -->
-    <link rel="stylesheet" href="css/style.css?v=109">
+    <link rel="stylesheet" href="css/style.css?v=110">
     
     <!-- Cache Buster Script -->
     <script>
         if ('caches' in window) {
             caches.keys().then(keys => {
                 keys.forEach(k => {
-                    if (k !== 'flashlearn-v146') caches.delete(k);
+                    if (k !== 'flashlearn-v147') caches.delete(k);
                 });
             });
         }
@@ -310,7 +310,7 @@
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=146')
+                navigator.serviceWorker.register('sw.js?v=147')
                     .then(reg => {
                         console.log('SW registered:', reg.scope);
                         reg.update();
